@@ -18,13 +18,19 @@
     <LibraryReferences>{e517925b-e718-4176-a43b-c29b0648e201}</LibraryReferences>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="DUTs\E_TcpIpErrorID.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_TcpIpState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\E_TcpIpState.TcDUT">
+    <Compile Include="POUs\FB_TCPIPServerManager.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\FB_TCPIPServerManager.TcPOU">
+    <Compile Include="POUs\FB_TCPIPClientManager.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\MAIN.TcPOU">

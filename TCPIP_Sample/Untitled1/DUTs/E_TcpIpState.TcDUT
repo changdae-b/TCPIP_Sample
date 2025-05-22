@@ -7,9 +7,9 @@
 TYPE E_TcpIpState :
 (
 	Idle := 0,
-	initSend := 9,
+	//initSend := 9,
 	Send := 10,
-	initReceive := 19,
+	//initReceive := 19,
 	Receive := 20,
 	Error := -1
 );

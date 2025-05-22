@@ -7,10 +7,13 @@ VAR CONSTANT
 END_VAR
 VAR
 	fbTcpIpManager : FB_TcpIpServerManager<DATA_SIZE>('192.168.10.160',5000);
+	fbTcpIpClient :	FB_TcpIpClientManager<DATA_SIZE>('192.168.10.160',5000);
 	step : INT;
 	
-	sSend 		: STRING(255);
-	sReceive 	: STRING(255);
+	sSend 		: STRING(DATA_SIZE);
+	sReceive 	: STRING(DATA_SIZE);
+	sSend2 		: STRING(DATA_SIZE);
+	sReceive2 	: STRING(DATA_SIZE);
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[CASE step OF
@@ -18,10 +21,12 @@ END_VAR]]></Declaration>
 	
 	1:
 		fbTcpIpManager.Enable();
+		
 		step := 0;
 		
 	2:
 		fbTcpIpManager.Disable();
+		
 		step := 0;
 		
 	3:
@@ -34,9 +39,32 @@ END_VAR]]></Declaration>
 			step := 0;
 		END_IF
 		
+		
+	11:
+		fbTcpIpClient.Enable();
+		
+		step := 0;
+		
+	12:
+		fbTcpIpClient.Disable();
+		
+		step := 0;
+		
+	13:
+		IF fbTcpIpClient.Receive(sReceive2) THEN
+			step := 0;
+		END_IF
+		
+	14:
+		IF fbTcpIpClient.Send(sSend2) THEN
+			step := 0;
+		END_IF
+		
+		
 END_CASE
 
-fbTcpIpManager.CyclicCall();]]></ST>
+fbTcpIpManager.CyclicCall();
+fbTcpIpClient.CyclicCall();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>
