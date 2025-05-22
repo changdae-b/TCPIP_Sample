@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_TcpIpState" Id="{8d2ad347-2aef-47cd-a9cf-bc9b8d265dc8}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_TcpIpState :
+(
+	Idle := 0,
+	initSend := 9,
+	Send := 10,
+	initReceive := 19,
+	Receive := 20,
+	Error := -1
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

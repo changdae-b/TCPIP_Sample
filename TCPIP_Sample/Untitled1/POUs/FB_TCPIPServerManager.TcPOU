@@ -1,0 +1,225 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TCPIPServerManager" Id="{c215f6b5-44c2-412f-97df-bde91019b1c2}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TCPIPServerManager
+
+VAR_GENERIC CONSTANT
+	STRING_SIZE 		: UDINT := 255;
+END_VAR
+
+VAR
+	_Initalized : BOOL;
+	fbServerClientConnection 	: FB_ServerClientConnection;
+	fbSocketCloseAll			: FB_SocketCloseAll;
+	fbSocketSend				: FB_SocketSend;
+	fbSocketReceive				: FB_SocketReceive;
+	eState 						: E_TcpIpState;
+	
+	_sSrvNetID 					: T_AmsNetID  := ''; 
+	_LocalHost 					: T_IPv4Addr := '192.168.10.160';
+	_LocalPort 					: UDINT := 5000;
+	hServer 					: T_HSERVER;
+	_SendString					: REFERENCE TO STRING(STRING_SIZE);
+	_ReceiveString				: REFERENCE TO STRING(STRING_SIZE);
+	_SendDone 					: BOOL;
+	_ReceiveDone 				: BOOL;
+	
+	_ErrorID 	: UDINT;
+	
+	NumberOfSentData 		: UDINT;
+	NumberOfReceivedData 	: UDINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Folder Name="Property" Id="{8302387c-3b60-47fc-83dc-f239d74168fe}" />
+    <Action Name="CyclicCall" Id="{9afd4977-77ac-4c62-b7a5-2ae335c8fb1f}">
+      <Implementation>
+        <ST><![CDATA[IF NOT _Initalized THEN
+	fbSocketCloseAll(sSrvNetId:= _sSrvNetID, bExecute:= NOT _Initalized);
+	IF fbSocketCloseAll.bBusy THEN
+		RETURN;
+	ELSE
+		fbSocketCloseAll(sSrvNetId:= _sSrvNetID, bExecute:= FALSE);
+	END_IF
+	_Initalized := F_CreateServerHnd(
+	sSrvNetID := _sSrvNetID, 
+	sLocalHost:= _LocalHost, 
+	nLocalPort:= _LocalPort, 
+	nMode     := LISTEN_MODE_CLOSEALL, 
+	bEnable   := TRUE, 
+	hServer   := hServer);
+	eState := E_TcpIpState.Idle;
+	RETURN;
+END_IF
+
+fbServerClientConnection(hServer:= hServer);
+IF fbServerClientConnection.bError THEN
+	eState := E_TcpIpState.Error;
+END_IF 	
+
+CASE eState OF
+	E_TcpIpState.Idle:;
+	
+	E_TcpIpState.Send:
+		fbSocketSend(sSrvNetId:= _sSrvNetID, hSocket:= fbServerClientConnection.hSocket, 
+			cbLen:= STRING_SIZE, 
+			pSrc:= ADR(_SendString), 
+			bExecute:= TRUE);
+		IF NOT fbSocketSend.bBusy THEN
+			IF NumberOfSentData <  4294967290 THEN
+				NumberOfSentData := NumberOfSentData + 1;
+			ELSE
+				NumberOfSentData := 0;
+			END_IF
+			eState := E_TcpIpState.Idle;
+		ELSIF fbSocketSend.bError THEN
+			 eState := E_TcpipState.Error;
+			 _ErrorID := fbSocketSend.nErrId;
+		END_IF
+
+	E_TcpIpState.Receive:
+		fbSocketReceive(sSrvNetId:= _sSrvNetID, hSocket:= fbServerClientConnection.hSocket, 
+			cbLen:= STRING_SIZE, 
+			pDest:= ADR(_ReceiveString), 
+			bExecute:= TRUE);
+		IF NOT fbSocketReceive.bBusy THEN
+			eState := E_TcpipState.Idle;
+			IF NumberOfReceivedData <  4294967290 THEN
+				NumberOfReceivedData := NumberOfReceivedData + 1;
+			ELSE
+				NumberOfReceivedData := 0;
+			END_IF
+		ELSIF fbSocketReceive.bError THEN
+			 eState := E_TcpipState.Error;
+			 _ErrorID := fbSocketReceive.nErrId;
+		END_IF
+	
+	E_TcpIpState.Error:;
+	
+END_CASE]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="Disable" Id="{e74ac07e-47e9-41d6-b94d-774ef83962a6}">
+      <Declaration><![CDATA[METHOD Disable
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbServerClientConnection.bEnable := FALSE;
+eState := E_TcpIpState.Idle;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Enable" Id="{076968b2-14c6-43d6-87bf-98c4917ed123}">
+      <Declaration><![CDATA[METHOD Enable
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbServerClientConnection.bEnable := TRUE;
+eState := E_TcpIpState.Idle;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="ErrorID" Id="{e3221fad-e7dc-49a2-974e-82d62ed0e1c0}" FolderPath="Property\">
+      <Declaration><![CDATA[PROPERTY ErrorID : UDINT]]></Declaration>
+      <Get Name="Get" Id="{4daf0953-6e32-4006-9cc5-79c9de2d347e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF eState = E_TcpIpState.Error THEN
+	ErrorID := _ErrorID;
+ELSE
+	ErrorID := 0;
+END_IF]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="FB_Init" Id="{396ab74f-1798-403a-afef-449d12652c59}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)   
+	LocalHost 					: T_IPv4Addr := '192.168.10.160';
+	LocalPort 					: UDINT := 5000;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_LocalHost := LocalHost;
+_LocalPort := LocalPort;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="isConnected" Id="{0aa33852-d2b1-4691-908c-f96415513f73}" FolderPath="Property\">
+      <Declaration><![CDATA[PROPERTY isConnected : BOOL]]></Declaration>
+      <Get Name="Get" Id="{3fc08e19-5b2a-4762-a995-4873d7438d2f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[isConnected := fbServerClientConnection.eState = eSocket_Connected;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="isError" Id="{60356654-d483-449a-b1d4-47c53d4b708b}" FolderPath="Property\">
+      <Declaration><![CDATA[PROPERTY isError : BOOL]]></Declaration>
+      <Get Name="Get" Id="{88e26f30-3d0d-4028-8582-1d83fd7b3092}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[isError := eState = E_TcpIpState.Error;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Receive" Id="{dd47f327-0fcb-4fd2-8474-b0791c858a33}">
+      <Declaration><![CDATA[METHOD Receive : BOOL
+VAR_IN_OUT
+	ReceiveString : STRING(STRING_SIZE);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_ReceiveDone := FALSE;
+IF eState = E_TcpIpState.Idle THEN
+	_ReceiveString REF= ReceiveString;	
+	fbSocketReceive(bExecute:= FALSE);
+	eState := E_Tcpipstate.Receive;
+	MEMSET(ADR(_ReceiveString),0,SIZEOF(_ReceiveString));
+	Receive := TRUE;
+ELSE
+	Receive := FALSE;
+	RETURN;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Send" Id="{2e9ecc0d-a030-44bf-8b43-8a2832e60930}">
+      <Declaration><![CDATA[METHOD Send : BOOL
+VAR_IN_OUT
+	SendString : STRING(STRING_SIZE);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_SendDone := FALSE;
+IF eState = E_TcpIpState.Idle THEN
+	_SendString REF= SendString;	
+	fbSocketSend(bExecute:= FALSE);
+	eState := E_Tcpipstate.Send;
+	Send := TRUE;
+ELSE
+	Send := FALSE;
+	RETURN;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetReconnectTime" Id="{fd78d22a-4132-41dc-9647-03ef7572e28e}">
+      <Declaration><![CDATA[METHOD SetReconnectTime
+VAR_INPUT
+	ReconnectTime : TIME;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbServerClientConnection.tReconnect := ReconnectTime;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

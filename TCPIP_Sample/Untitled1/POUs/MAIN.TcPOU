@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{cc5c4064-7356-4785-ab30-944e68e28370}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR CONSTANT
+	DATA_SIZE : UDINT := 255;
+END_VAR
+VAR
+	fbTcpIpManager : FB_TcpIpServerManager<DATA_SIZE>('192.168.10.160',5000);
+	step : INT;
+	
+	sSend 		: STRING(255);
+	sReceive 	: STRING(255);
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE step OF
+	0:;
+	
+	1:
+		fbTcpIpManager.Enable();
+		step := 0;
+		
+	2:
+		fbTcpIpManager.Disable();
+		step := 0;
+		
+	3:
+		IF fbTcpIpManager.Receive(sReceive) THEN
+			step := 0;
+		END_IF
+		
+	4:
+		IF fbTcpIpManager.Send(sSend) THEN
+			step := 0;
+		END_IF
+		
+END_CASE
+
+fbTcpIpManager.CyclicCall();]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
